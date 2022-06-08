@@ -481,7 +481,7 @@ function city_coord_to_LNS(v,h) {
 
 
 async function get_info(city_name) {
-	let r = await fetch("http://www.mapquestapi.com/geocoding/v1/address?key="+api_key+"&location="+city_name);
+	let r = await fetch("https://www.mapquestapi.com/geocoding/v1/address?key="+api_key+"&location="+city_name);
 	r = await r.json();
 	return r.results[0].locations[0];
 }
@@ -506,7 +506,7 @@ function city_state_country(L) {
 
 async function LNS_city_to_English(name) {
 	let coord = LNS_city_to_coord(name);
-	let r = await fetch("http://www.mapquestapi.com/geocoding/v1/reverse?key="+api_key+"&location="+coord.v + ',' + coord.h);
+	let r = await fetch("https://www.mapquestapi.com/geocoding/v1/reverse?key="+api_key+"&location="+coord.v + ',' + coord.h);
 	r = await r.json();
 	let L = r.results[0].locations[0];
 	console.log(L);
@@ -521,7 +521,7 @@ new Vue({
 		return {
 			action: 'LNS_city_to_English',
 			r: null,
-			input: 'Paismiat',
+			input: '',
 			pattern: 'cv',
 		};
 	},
