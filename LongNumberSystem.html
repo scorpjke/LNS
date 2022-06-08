@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8">
+
+<style type="text/css">
+
+table {
+  border-collapse: collapse;
+}
+
+table, th, td {
+	border: 1px solid;
+}
+
+td {
+	padding: 4px;
+}
+
+#app {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+</style>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+ </head>
+<body>
+
+<div id="app">
+
+<h2> Long Number System</h2>
+
+<div>
+	<select v-model="action">
+		<option value="LNS_to_digits"> Parse LNS to digits </option>
+		<option value="digits_to_LNS"> Transform digits to LNS </option>
+		<option value="city_to_LNS"> Generate LNS for any city </option>
+		<option value="LNS_city_to_English"> Translate LNS city to English </option>
+	</select>
+	
+	<input @keypress.Enter="handle_go" v-model="input">
+	<button @click="handle_go"> Go </button>
+	<div  v-if="action == 'digits_to_LNS' ">
+		Pattern
+	<input v-model="pattern">
+	</div>
+	
+</div>
+
+<div style="padding: 10px"> </div>
+
+<table v-if="r && ['city_to_LNS', 'LNS_city_to_English'].includes(r.type) ">
+	<tr>
+		<th> City name </th>
+		<th> Coordinates </th>
+		<th> Transformed </th>
+		<th> LNS </th>
+	</tr>
+	<tr>
+		<td> {{r.city}} </td>
+		<td> ({{r.coord.v}}, {{r.coord.h}})</td>
+		<td> {{r.adopted.v}}, {{r.adopted.h}} </td>
+		<td> {{r.LNS}} </td>
+	</tr>
+</table>
+
+
+<table v-else-if="r && r.type == 'LNS_to_digits' ">
+	<tr>
+		<th> LNS </th>
+		<th> Digits </th>
+		<th> Pattern </th>
+	</tr>
+	<tr>
+		<td> {{r.LNS }} </td>
+		<td> {{r.digits.join('') }} </td>
+		<td> {{r.pattern.join('') }} </td>
+	</tr>
+</table>
+
+<table v-else-if="r && r.type == 'digits_to_LNS' ">
+	<tr>
+		<th> Digits </th>
+		<th> LNS </th>
+	</tr>
+	<tr>
+		<td> {{r.digits}} </td>
+		<td> {{r.LNS}} </td>
+	</tr>
+</table>
+
+
+<h3> Transformation table </h3>
+
+<table>
+	<tr v-for="i in [0,1,2,3,4,5,6,7,8,9]">
+		<td> {{ i }} </td>
+		<td> {{ cons[i] }} </td>
+		<td> {{ vow[i] }} </td>
+	</tr>
+</table>
+
+<h3> General LNS rules </h3>
+<ol>
+	<li> Each digit is represented by either one consonant or one [diphthong] vowel. </li>
+	<li> Consonant clusters are allowed (technically of any length). But vowel combinations are not allowed. For example, one cannot encode "21" as "ie", and of course "02" can never be represented as "ai" since "ai" always means "5". </li>
+	<li> It is often possible to encode the same number in multiple ways. But each LNS code only represents one number.</li>
+</ol>
+
+<h3> LNS City Encoding </h3>
+<ol>
+	<li> Take the coordinates of the city center: (latitude, longtide). </li>
+	<li> Divide longitude by 2. This ensures that both numbers are now in range from -90 to 90. </li>
+	<li> Round both numbers to 1 digit after the decimal point. </li>
+	<li> Remove the decimal point and reverse the order of digits in both numbers. </li>
+	<li> Transform both numbers to LNS code. Use the patterns "cvc" and "vcv" for positive and negative numbers, respectively. If both numbers are negative, use overall pattern "vccvcv". </li>
+</ol>
+
+<h3> City Examples </h3>
+<table>
+	<tr>
+		<th> City name </th>
+		<th> Coordinates </th>
+		<th> Transformed </th>
+		<th> Result </th>
+	</tr>
+	<tr v-for="c in cities">
+		<td> {{c.name}} </td>
+		<td> ({{c.v}}, {{c.h}}) </td>
+		<td> {{c.adopted.v}}, {{c.adopted.h}} </td>
+		<td> {{c.alt}} </td>
+	</tr>
+</table>
+
+</div>
+
+</body>
+</html>
+
+<script>
+
+let code_to_country_name = {
+AF : "Afghanistan",
+AX : "Åland Islands",
+AL : "Albania",
+DZ : "Algeria",
+AS : "American Samoa",
+AD : "Andorra",
+AO : "Angola",
+AI : "Anguilla",
+AQ : "Antarctica",
+AG : "Antigua and Barbuda",
+AR : "Argentina",
+AM : "Armenia",
+AW : "Aruba",
+AU : "Australia",
+AT : "Austria",
+AZ : "Azerbaijan",
+BS : "Bahamas",
+BH : "Bahrain",
+BD : "Bangladesh",
+BB : "Barbados",
+BY : "Belarus",
+BE : "Belgium",
+BZ : "Belize",
+BJ : "Benin",
+BM : "Bermuda",
+BT : "Bhutan",
+BO : "Bolivia",
+BA : "Bosnia and Herzegovina",
+BW : "Botswana",
+BV : "Bouvet Island",
+BR : "Brazil",
+IO : "British Indian Ocean Territory",
+BN : "Brunei Darussalam",
+BG : "Bulgaria",
+BF : "Burkina Faso",
+BI : "Burundi",
+KH : "Cambodia",
+CM : "Cameroon",
+CA : "Canada",
+CV : "Cape Verde",
+KY : "Cayman Islands",
+CF : "Central African Republic",
+TD : "Chad",
+CL : "Chile",
+CN : "China",
+CX : "Christmas Island",
+CC : "Cocos (Keeling) Islands",
+CO : "Colombia",
+KM : "Comoros",
+CG : "Congo",
+CD : "The Democratic Republic of the Congo",
+CK : "Cook Islands",
+CR : "Costa Rica",
+CI : "Cote D'Ivoire",
+HR : "Croatia",
+CU : "Cuba",
+CY : "Cyprus",
+CZ : "Czech Republic",
+DK : "Denmark",
+DJ : "Djibouti",
+DM : "Dominica",
+DO : "Dominican Republic",
+EC : "Ecuador",
+EG : "Egypt",
+SV : "El Salvador",
+GQ : "Equatorial Guinea",
+ER : "Eritrea",
+EE : "Estonia",
+ET : "Ethiopia",
+FK : "Falkland Islands (Malvinas)",
+FO : "Faroe Islands",
+FJ : "Fiji",
+FI : "Finland",
+FR : "France",
+GF : "French Guiana",
+PF : "French Polynesia",
+TF : "French Southern Territories",
+GA : "Gabon",
+GM : "Gambia",
+GE : "Georgia",
+DE : "Germany",
+GH : "Ghana",
+GI : "Gibraltar",
+GR : "Greece",
+GL : "Greenland",
+GD : "Grenada",
+GP : "Guadeloupe",
+GU : "Guam",
+GT : "Guatemala",
+GG : "Guernsey",
+GN : "Guinea",
+GW : "Guinea-Bissau",
+GY : "Guyana",
+HT : "Haiti",
+HM : "Heard Island and Mcdonald Islands",
+VA : "Holy See (Vatican City State)",
+HN : "Honduras",
+HK : "Hong Kong",
+HU : "Hungary",
+IS : "Iceland",
+IN : "India",
+ID : "Indonesia",
+IR : "Iran",
+IQ : "Iraq",
+IE : "Ireland",
+IM : "Isle of Man",
+IL : "Israel",
+IT : "Italy",
+JM : "Jamaica",
+JP : "Japan",
+JE : "Jersey",
+JO : "Jordan",
+KZ : "Kazakhstan",
+KE : "Kenya",
+KI : "Kiribati",
+KP : "North Korea",
+KR : "South Korea",
+XK : "Kosovo",
+KW : "Kuwait",
+KG : "Kyrgyzstan",
+LA : "Laos",
+LV : "Latvia",
+LB : "Lebanon",
+LS : "Lesotho",
+LR : "Liberia",
+LY : "Libya",
+LI : "Liechtenstein",
+LT : "Lithuania",
+LU : "Luxembourg",
+MO : "Macao",
+MK : "Macedonia",
+MG : "Madagascar",
+MW : "Malawi",
+MY : "Malaysia",
+MV : "Maldives",
+ML : "Mali",
+MT : "Malta",
+MH : "Marshall Islands",
+MQ : "Martinique",
+MR : "Mauritania",
+MU : "Mauritius",
+YT : "Mayotte",
+MX : "Mexico",
+FM : "Micronesia",
+MD : "Moldova",
+MC : "Monaco",
+MN : "Mongolia",
+ME : "Montenegro",
+MS : "Montserrat",
+MA : "Morocco",
+MZ : "Mozambique",
+MM : "Myanmar",
+NA : "Namibia",
+NR : "Nauru",
+NP : "Nepal",
+NL : "Netherlands",
+AN : "Netherlands Antilles",
+NC : "New Caledonia",
+NZ : "New Zealand",
+NI : "Nicaragua",
+NE : "Niger",
+NG : "Nigeria",
+NU : "Niue",
+NF : "Norfolk Island",
+MP : "Northern Mariana Islands",
+NO : "Norway",
+OM : "Oman",
+PK : "Pakistan",
+PW : "Palau",
+PS : "Palestinian Territory",
+PA : "Panama",
+PG : "Papua New Guinea",
+PY : "Paraguay",
+PE : "Peru",
+PH : "Philippines",
+PN : "Pitcairn",
+PL : "Poland",
+PT : "Portugal",
+PR : "Puerto Rico",
+QA : "Qatar",
+RE : "Reunion",
+RO : "Romania",
+RU : "Russia",
+RW : "Rwanda",
+SH : "Saint Helena",
+KN : "Saint Kitts and Nevis",
+LC : "Saint Lucia",
+PM : "Saint Pierre and Miquelon",
+VC : "Saint Vincent and the Grenadines",
+WS : "Samoa",
+SM : "San Marino",
+ST : "Sao Tome and Principe",
+SA : "Saudi Arabia",
+SN : "Senegal",
+RS : "Serbia",
+SC : "Seychelles",
+SL : "Sierra Leone",
+SG : "Singapore",
+SK : "Slovakia",
+SI : "Slovenia",
+SB : "Solomon Islands",
+SO : "Somalia",
+ZA : "South Africa",
+GS : "South Georgia and the South Sandwich Islands",
+ES : "Spain",
+LK : "Sri Lanka",
+SD : "Sudan",
+SR : "Suriname",
+SJ : "Svalbard and Jan Mayen",
+SZ : "Swaziland",
+SE : "Sweden",
+CH : "Switzerland",
+SY : "Syrian Arab Republic",
+TW : "Taiwan",
+TJ : "Tajikistan",
+TZ : "Tanzania",
+TH : "Thailand",
+TL : "Timor-Leste",
+TG : "Togo",
+TK : "Tokelau",
+TO : "Tonga",
+TT : "Trinidad and Tobago",
+TN : "Tunisia",
+TR : "Turkey",
+TM : "Turkmenistan",
+TC : "Turks and Caicos Islands",
+TV : "Tuvalu",
+UG : "Uganda",
+UA : "Ukraine",
+AE : "United Arab Emirates",
+GB : "United Kingdom",
+US : "United States",
+UM : "United States Minor Outlying Islands",
+UY : "Uruguay",
+UZ : "Uzbekistan",
+VU : "Vanuatu",
+VE : "Venezuela",
+VN : "Vietnam",
+VG : "Virgin Islands, British",
+VI : "Virgin Islands, U.S.",
+WF : "Wallis and Futuna",
+EH : "Western Sahara",
+YE : "Yemen",
+ZM : "Zambia",
+ZW : "Zimbabwe"
+};
+
+let api_key = "SggG4G7rU3oGhZAo9D0dSNi3HzIICwmc";
+
+let sets = {
+	from_nao: {cons: 'mjktfplsrn', vow: ['o','a', 'i', 'u', 'e', 'ai', 'oi', 'ua', 'ei', 'iu'] },
+	alphabetical: {cons: 'fjklmnprst', vow: ['a','e', 'i', 'o', 'u', 'ai', 'ei', 'iu', 'oi', 'ua'] },
+	test: {
+		cons: 'ftlnpskrmj',
+		vow: ['a','e', 'i', 'o', 'u', 'ai', 'au', 'ei', 'ia', 'oi'],
+		reversed: true
+	},
+};
+
+let {cons,vow,reversed} = sets.test;
+
+function clean(n) {
+	let res = Math.abs(n).toFixed(1).toString().replace(/\./, '');
+	while (res.length < 3) res = '0'+res;
+	if (reversed) res = res.split('').reverse().join('');
+	return res;
+}
+
+function adopt_coord(v,h) {
+	let res = {v: clean(v), h: clean(h/2) };
+	return res;
+}
+
+function adopt_coord_with_minus(v,h) {
+	let adopted = adopt_coord(v, h);
+	if (v < 0) adopted.v = '-' + adopted.v;
+	if (h < 0) adopted.h = '-' + adopted.h;
+	return adopted;
+}
+
+function from_pattern(digits, pattern) {
+	if (pattern.includes('vv') ) throw Error("Wrong pattern");
+	let res = '';
+	let k=0, i=0;
+	while(1) {
+		let t = pattern[i% pattern.length];
+		if ('cv'.includes(t) && k >= digits.length) break;
+
+		if (t == 'c') {res += cons[digits[k]]; k++;}
+		else if (t == 'v') {res += vow[digits[k]]; k++;}
+		else res += t;
+
+		i++;
+	}
+	return res;
+}
+
+function char_to_digit(s) {
+	let res = cons.indexOf(s);
+	if (res != -1) return {value: res, type: 'c'};
+	res = vow.indexOf(s);
+	if (res != -1) return {value: res, type: 'v'};
+	throw Error("String contains illegal characters");
+}
+
+function to_digits(word) {
+	let A = word.toLowerCase().replace(/([ftlnpskrmj])/g, ' $1 ').trim().split(/ +/).map(char_to_digit);
+	return {digits: A.map(o => o.value), pattern: A.map(o => o.type) };
+}
+
+function LNS_city_to_coord(name) {
+	let {digits: A, pattern} = to_digits(name);
+
+	if (A.length != 6) throw Error("invalid city name");
+	let v = Number(A.slice(0,3).reverse().join(''))/10;
+	let h = Number(A.slice(3).reverse().join(''))*2/10;
+	if ( pattern[0] == 'v' ) v *= -1;
+	if ( pattern[3] == 'v' ) h *= -1;
+	return ({v,h});
+}
+
+function city_coord_to_LNS(v,h) {
+	let a = adopt_coord(v,h);
+	let f,s;
+	if (h >= 0) s = 'cvc';
+	else s = 'vcv';
+
+	if (v >= 0) f = 'cvc';
+	else if (h >= 0) f = 'vcv';
+	else f = 'vcc';
+
+	let res = from_pattern(a.v+a.h, f+s);
+	res = res[0].toUpperCase() + res.slice(1);
+	return res;
+}
+
+
+async function get_info(city_name) {
+	let r = await fetch("http://www.mapquestapi.com/geocoding/v1/address?key="+api_key+"&location="+city_name);
+	r = await r.json();
+	return r.results[0].locations[0];
+}
+
+
+async function city_name_to_LNS(name) {
+	let info = await get_info(name);
+	console.log(info);
+	let {lat: v, lng: h} = info.latLng;
+	let LNS = city_coord_to_LNS(v, h);
+	let city = city_state_country(info);
+	return {LNS, city, coord: {v,h} };
+}
+
+function city_state_country(L) {
+	if (!L.adminArea5) throw Error("Not a city");
+	let city = [L.adminArea5];
+	if (L.adminArea3 && L.adminArea3.toLowerCase() != L.adminArea5.toLowerCase() ) city.push(L.adminArea3);
+	city.push(code_to_country_name[L.adminArea1] );
+	return city.join(', ');
+}
+
+async function LNS_city_to_English(name) {
+	let coord = LNS_city_to_coord(name);
+	let r = await fetch("http://www.mapquestapi.com/geocoding/v1/reverse?key="+api_key+"&location="+coord.v + ',' + coord.h);
+	r = await r.json();
+	let L = r.results[0].locations[0];
+	console.log(L);
+	
+	let city = city_state_country(L);
+	return {city, coord, LNS:name};
+}
+
+new Vue({
+	el: '#app',
+	data() {
+		return {
+			action: 'LNS_city_to_English',
+			r: null,
+			input: 'Paismiat',
+			pattern: 'cv',
+		};
+	},
+	methods: {
+		handle_go: async function() {
+			this.r = null;
+
+			console.log(this.action);
+			if (this.action == 'city_to_LNS') {
+				this.r = await city_name_to_LNS(this.input);
+
+				let c = this.r.coord;
+				this.r.adopted = adopt_coord_with_minus(c.v, c.h);;
+			}
+			else if (this.action == 'LNS_to_digits') {
+				this.r = to_digits(this.input);
+				this.r.LNS = this.input;
+			}
+			else if (this.action == 'digits_to_LNS') {
+				let LNS = from_pattern(this.input, this.pattern );
+				this.r = {LNS, digits: this.input};
+				console.log(this.r);
+			}
+			else if (this.action == 'LNS_city_to_English') {
+				this.r = await LNS_city_to_English(this.input);
+				let c = this.r.coord;
+				this.r.adopted = adopt_coord_with_minus(c.v, c.h);
+			}
+
+			this.r.type = this.action;
+		}
+	},
+	created() {
+		this.cities = [
+			{name: 'Tbilisi', v:41.713, h: 44.824},
+			{name: 'Baku', v:40.396, h:49.870},
+			{name: 'New York City', v: 40.690, h: -73.945},
+			{name: 'Rio de Janeiro', v: -22.875, h: -43.303},
+			{name: 'Paris', v:48.859, h: 2.348},
+			{name: 'Berlin', v:52.518, h:13.403},
+			{name: 'Leipzig', v:51.339, h:12.373},
+			{name: 'Dresden', v:51.041, h:13.742},
+			{name: 'London', v:51.507, h:-0.112},
+			{name: 'Milano', v:45.469, h:9.184},
+			{name: 'Kiev', v:50.456, h:30.497},
+			{name: 'Ankara', v:39.934, h:32.834},
+
+			{name: 'Bangkok', v:13.767, h:100.537},
+			{name: 'Saigon', v: 10.795, h:106.659},
+			{name: 'Vungtau', v: 10.391, h:107.117},
+			{name: 'Can Tho', v:10.042, h:105.765},
+			{name: 'Nha Trang', v:12.249, h: 109.190},
+			{name: 'Da Nang', v:16.051, h:108.215},
+			{name: 'Sydney', v:-33.850, h:151.083},
+			{name: 'Philadelphia', v:40.021, h:-75.142},
+			{name: 'Albequerque', v:35.099, h:-106.646},
+			{name: 'Los Angeles', v:34.064, h: -118.335},
+			{name: 'Toronto', v:43.699, h:-79.430},
+			{name: 'Mexico City', v:19.432, h:-99.132},
+			{name: 'Anchorage', v:61.165, h:-149.895},
+
+			{name: 'Hong Kong', v:22.299, h:114.172},
+			{name: 'Macao', v: 22.162, h:113.561},
+			{name: 'Singapore', v: 1.348, h:103.815},
+			{name: 'Manila', v:14.601, h:120.985},
+			{name: 'Kuala Lumpur', v:3.148, h:101.685},
+			{name: 'Beijing', v: 39.922, h:116.380},
+			{name: 'Shanghai', v:31.217, h:121.530},
+			{name: 'Cairo', v:30.039, h:31.233},
+			{name: 'Seoul', v:37.557, h:126.992},
+			{name: 'Busan', v:35.1772, h:129.030},
+			{name: 'Auckland', v:-36.882, h:174.775},
+
+			{name: 'Moscow', v: 55.751, h: 37.620},
+			{name: 'Khimki', v:55.904, h: 37.436},
+			{name: 'Zelenograd', v:55.981, h:37.181},
+			{name: 'Mytishchi', v:55.922, h:37.747},
+			{name: 'Podolsk', v:55.431, h:37.549},
+		];
+
+		for (let c of this.cities) {
+			c.adopted = adopt_coord_with_minus(c.v, c.h);
+			c.alt = city_coord_to_LNS(c.v, c.h);
+		}
+
+		this.cons = cons;
+		this.vow = vow;
+	}
+})
+
+</script>
+
